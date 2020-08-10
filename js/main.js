@@ -1,245 +1,130 @@
 const compose = (...functions) => data =>
     functions.reduceRight((value, func) => func(value), data)
-
-/*
-    function compose(...functions) {
-        return function (data) {
-            functions.reduceRight((value, function) => func(value), data){
-            })
-        }
+/* {
+    tag: h1,
+    attr: {
+        class: 'title'
     }
-*/
+} */
 
-const $DESC = document.getElementById('description');
-const $CALORIES = document.getElementById('calories');
-const $CARBS = document.getElementById('carbs');
-const $PROTEIN = document.getElementById('protein');
+const attrsToString = (obj = {}) => {
+    const keys = Object.keys(obj)
+    const attrs = []
+    for (let i = 0; i < keys.length; i++) {
+        let attr = keys[i]
+        attrs.push(`${attr}="${obj[attr]}"`)
+    }
+    const string = attrs.join('')
+    return string
+}
 
-const $ADD_BUTTON = document.getElementById('add');
+/* const attrsToString = (obj = {}) => {
+    Object.keys(obj)
+    .map(attr => `${attr}="${obj[attr]}"`)
+    .join('')
+} */
+
+const tagAttrs = obj => (content = "") =>
+    `<${obj.tag}${obj.attrs ? ' ' : ''}${attrsToString(obj.attrs)}>${content}</${obj.tag}>`
+
+/* const tag = t => {
+    if (typeof t === 'string') {
+        return tagAttrs({ tag: t })
+    } else {
+        return tagAttrs(t)
+    }
+} */
+
+const tag = t => typeof t === 'string' ? tagAttrs({ tag: t }): tagAttrs(t)
+
+const tableCell = tag('td')
+const tableCells = items => items.map(tableCell).join('')
+
+const tableRowTag = tag('tr')
+const tableRow = items => compose(tableRowTag, tableCells)(items)
+
+const trashIcon = tag({tag: 'i', attrs: {class:'fas fa-trash-alt'}})('X')
 
 const IS_INVALID = 'is-invalid'
+const description = document.getElementById('description')
+const carbs = document.getElementById('carbs')
+const calories = document.getElementById('calories')
+const protein = document.getElementById('protein')
 
-let itemsList = [];
+const totalCalories = document.getElementById('total-calories')
+const totalCarbs = document.getElementById('total-carbs')
+const totalProtein = document.getElementById('total-protein')
+const listItems = document.getElementById('list-items')
 
-const attrToString = (obj = {}) =>
-    Object.keys(obj)
-        .map(key => `${key}="${obj[key]}"`)
-        .join(' ')
+let list = []
 
-const tagAttrs = obj => (content = '') =>
-    `<${obj.tag}${obj.attrs ? ' ' : ''}${attrToString(obj.attrs)}> ${content} </${obj.tag}>`;
+const inputs = [description, carbs, calories, protein]
 
-const inputAttrs = obj =>
-    `<${obj.tag}${obj.attrs ? ' ' : ''}${attrToString(obj.attrs)}>`;
+const addKeyDownListener = (elem) => {
+    elem.addEventListener('keydown', () => elem.classList.remove(IS_INVALID))
+}
+const validInputs = (elem) => {
+    elem.value ? '' : elem.classList.add(IS_INVALID)
+}
 
-const tag = nameTag =>
-    typeof nameTag === 'string' ? tagAttrs({ tag: nameTag }) : tagAttrs(nameTag);
+const isValid = elem => elem.value
+const isFormValid = () =>
+    isValid(description) && isValid(carbs) && isValid(calories) && isValid(protein)
 
-const inputTag = nameTag =>
-    typeof nameTag === 'string' ? inputAttrs({ tag: nameTag }) : inputAttrs(nameTag);
 
-// const tableRow = (items) => tableRowTag(tableCells(items))
+inputs.forEach(addKeyDownListener)
 
-const tableCell = tag('td');
-const tableCells = items => items.map(tableCell).join('');
+const validateInputs = () => {
+    inputs.forEach(validInputs)
+    if (isFormValid()) {
+        add()
+    }
+}
 
-const add = (list) =>
-{
+const add = () => {
     const newItem = {
-        description: $DESC.value,
-        calories: parseInt($CALORIES.value),
-        carbs: parseInt($CARBS.value),
-        protein: parseInt($PROTEIN.value),
+        description: description.value,
+        calories: parseInt(calories.value),
+        carbs: parseInt(carbs.value),
+        protein: parseInt(protein.value),
     }
-
-
-    list.push(newItem);
-    console.log(list);
-}
-
-const clearInputs = () =>
-{
-    $DESC.value = '';
-    $CALORIES.value = '';
-    $CARBS.value = '';
-    $PROTEIN.value = '';
-}
-
-const removeItem = index =>
-{
-    itemsList.splice(index, 1);
-    updateTotal()
+    list.push(newItem)
     renderItems();
+    inputs.forEach(cleanInputs)
+    updateTotals()
 }
 
-const editItem = index =>
-{
-    const $rowToEdit = document.querySelectorAll(`#list-item-${index} td input`);
-    const $buttonMOD = document.querySelector(`#list-item-${index} td .edit`)
-
-    if ($buttonMOD.getAttribute('data-status') == 'start')
-    {
-        Array.prototype.map.call($rowToEdit, item => { item.disabled = false; item.classList.add('enabled') });
-        $buttonMOD.setAttribute('data-status', 'finish')
-    }
-    else
-    {
-        const newItem = {
-            description: $rowToEdit[0].value,
-            calories: parseInt($rowToEdit[1].value),
-            carbs: parseInt($rowToEdit[2].value),
-            protein: parseInt($rowToEdit[3].value),
-        }
-
-        itemsList[index].description = newItem.description;
-        itemsList[index].calories = newItem.calories;
-        itemsList[index].carbs = newItem.carbs;
-        itemsList[index].protein = newItem.protein;
-        
-        Array.prototype.map.call($rowToEdit, item => { item.disabled = true; item.classList.remove('enabled') });
-        $buttonMOD.setAttribute('data-status', 'start')
-
-        updateTotal();
-
-        console.log('Elementos Editados');
-    }
-}
-
-const updateTotal = () =>
-{
+const updateTotals = () => {
     let calories = 0, carbs = 0, protein = 0;
-
-    itemsList.map((item) =>
-    {
-        calories += item.calories;
-        carbs += item.carbs;
-        protein += item.protein;
-    });
-
-    document.getElementById('total-calories').textContent = calories;
-    document.getElementById('total-carbs').textContent = carbs;
-    document.getElementById('total-protein').textContent = protein;
+    list.map(item => {
+        calories += item.calories,
+            carbs += item.carbs,
+            protein += item.protein
+    })
+    totalCalories.textContent = calories
+    totalCarbs.textContent = carbs
+    totalProtein.textContent = protein
+}
+const cleanInputs = (elem) => {
+    elem.value = ''
 }
 
-const renderItems = () =>
-{
-    const $TBODY = document.getElementById('list-items');
-    
-    const rows = itemsList.map((item, index) =>
-    {
-        const tableRowTag = tag({ tag: 'tr', attrs: { id: `list-item-${index}` } });
-
-        const tableRow = (items) => compose(tableRowTag, tableCells)(items);
-
-        const descriptionInput = {
-            tag: 'input',
-            attrs: {
-                type: 'text',
-                name: 'description',
-                disabled: 'true',
-                value: item.description,
+const renderItems = () =>{
+    listItems.innerHTML = ''
+    list.map((item, index) => {
+        const removeButton = tag({
+            tag: 'button',
+            attrs:{
+                class: 'btn btn-outline-danger', 
+                onclick: `removeItem(${index})`
             }
-        };
-
-        const caloriesInput = {
-            tag: 'input',
-            attrs: {
-                type: 'number',
-                name: 'calories',
-                disabled: 'true',
-                value: item.calories,
-            }
-        };
-
-        const carbsInput = {
-            tag: 'input',
-            attrs: {
-                type: 'number',
-                name: 'carbs',
-                disabled: item.carbs,
-                value: item.carbs,
-            }
-        };
-
-        const proteinInput = {
-            tag: 'input',
-            attrs: {
-                type: 'number',
-                name: 'protein',
-                disabled: 'true',
-                value: item.protein,
-            }
-        };
-
-        const description = inputAttrs(descriptionInput);
-        const calories = inputAttrs(caloriesInput);
-        const carbs = inputAttrs(carbsInput);
-        const protein = inputAttrs(proteinInput);
-
-        const buttonsArray = [
-            {
-                tag: 'button',
-                attrs:
-                {
-                    class: 'remove',
-                    onclick: `removeItem(${index})`,
-                }
-            },
-            {
-                tag: 'button',
-                attrs:
-                {
-                    class: 'edit',
-                    onclick: `editItem(${index})`,
-                    'data-status': 'start',
-                }
-            },
-        ]
-
-        const buttons = buttonsArray.map(item => tag(item)('')).join('');
-
-        return tableRow([description, calories, carbs, protein, buttons]);
-    }).join('');
-
-    $TBODY.innerHTML = rows;
+        })(trashIcon)
+        listItems.innerHTML += tableRow([item.description, item.calories, item.carbs, item.protein, removeButton])
+    })
 }
 
-const validateInputs = () =>
-{
-    if ($DESC.value && $CALORIES.value && $CARBS.value && $PROTEIN.value)
-    {
-        add(itemsList);
-        clearInputs();
-        updateTotal();
-        renderItems();
-    }
-    else
-    {
-        $DESC.classList.add(IS_INVALID);
-        $CALORIES.classList.add(IS_INVALID);
-        $CARBS.classList.add(IS_INVALID);
-        $PROTEIN.classList.add(IS_INVALID);
-    }
+const removeItem = index => {
+    list.splice(index,1)
+    updateTotals()
+    renderItems()
 }
-
-$ADD_BUTTON.addEventListener('click', validateInputs);
-
-$DESC.addEventListener('keyup', () => { $DESC.classList.remove(IS_INVALID) });
-
-$CALORIES.addEventListener('keyup', () => { $CALORIES.classList.remove(IS_INVALID) });
-
-$CARBS.addEventListener('keyup', () => { $CARBS.classList.remove(IS_INVALID) });
-
-$PROTEIN.addEventListener('keyup', () => { $PROTEIN.classList.remove(IS_INVALID) });
-
-window.addEventListener('beforeunload', () => { localStorage.setItem('items', JSON.stringify(itemsList)) });
-
-(() =>
-{
-    items = JSON.parse(localStorage.getItem('items'));
-    console.log(items);
-    items.length === 0 ? 0
-        : itemsList = items,
-        updateTotal(),
-        renderItems();
-})();
